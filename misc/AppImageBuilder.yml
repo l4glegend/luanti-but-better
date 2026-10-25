@@ -15,6 +15,10 @@ AppDir:
     - usr/share/man
     - usr/share/doc
     - usr/share/lintian
+  after_runtime: |
+    test -x "$SOURCE_DIR/misc/AppRun-clientmods"
+    mv "$TARGET_APPDIR/AppRun" "$TARGET_APPDIR/AppRun.luanti"
+    install -m 0755 "$SOURCE_DIR/misc/AppRun-clientmods" "$TARGET_APPDIR/AppRun"
   apt:
     arch: amd64
     sources:

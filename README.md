@@ -23,8 +23,13 @@ The in-game `.menu` panel provides access to the added client-side options:
 - **Configurable keys:** the added Freecam, X-Ray, and UI-utilities shortcuts
   can be changed in Luanti's settings.
 
-The bundled client-side modules are enabled automatically on first launch.
-Their settings are stored in the user's `clientmods/mods.conf` file.
+The AppImage enables client-side modding and the bundled modules automatically
+on first launch. If client-side modding is explicitly disabled in your profile,
+the AppImage asks before enabling it; other enabled client-side modules in that
+profile may also run. These settings are stored in the user's `minetest.conf`
+and `clientmods/mods.conf` files.
+If the opt-in dialog is unavailable, set `enable_client_modding = true` in
+`minetest.conf` to enable the menu.
 
 These are client-side modifications. Feature availability can vary between
 servers, and some servers may prohibit their use; follow the rules of the

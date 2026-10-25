@@ -1,0 +1,90 @@
+#!/bin/sh
+set -eu
+
+APPDIR="${APPDIR:?AppImage runtime did not set APPDIR}"
+USER_PATH="${LUANTI_USER_PATH:-${MINETEST_USER_PATH:-${HOME}/.minetest}}"
+MODS_DIR="${USER_PATH}/clientmods"
+MODS_CONF="${MODS_DIR}/mods.conf"
+USER_CONF="${USER_PATH}/minetest.conf"
+CONFIG_ARG_NEXT=false
+GAMEID_ARG_NEXT=false
+
+for arg in "$@"; do
+	if [ "$GAMEID_ARG_NEXT" = true ]; then
+		if [ "$arg" = list ]; then
+			exec "$APPDIR/AppRun.luanti" "$@"
+		fi
+		GAMEID_ARG_NEXT=false
+	fi
+
+	if [ "$CONFIG_ARG_NEXT" = true ]; then
+		USER_CONF=$arg
+		CONFIG_ARG_NEXT=false
+		continue
+	fi
+
+	case "$arg" in
+		--help|--version|--info|--run-unittests|--run-tests|--run-benchmarks|\
+		--server|--terminal|--recompress|--worldlist|--migrate|--migrate-players|\
+		--migrate-auth|--migrate-mod-storage)
+			exec "$APPDIR/AppRun.luanti" "$@"
+			;;
+		--config=*)
+			exec "$APPDIR/AppRun.luanti" "$@"
+			;;
+		--config)
+			CONFIG_ARG_NEXT=true
+			;;
+		--gameid)
+			GAMEID_ARG_NEXT=true
+			;;
+	esac
+done
+
+if [ "$CONFIG_ARG_NEXT" = true ]; then
+	exec "$APPDIR/AppRun.luanti" "$@"
+fi
+
+if ! mkdir -p "$MODS_DIR"; then
+	printf 'Could not create client-mod directory: %s\n' "$MODS_DIR" >&2
+	exit 1
+fi
+
+enable_default_mod() {
+	mod_name=$1
+	if ! grep -Eq "^load_mod_${mod_name}[[:space:]]*=" "$MODS_CONF" 2>/dev/null; then
+		printf '\nload_mod_%s = true\n' "$mod_name" >> "$MODS_CONF"
+	fi
+}
+
+enable_default_mod ext_menu
+enable_default_mod chest_dupe
+
+if ! grep -Eiq '^[[:space:]]*enable_client_modding[[:space:]]*=' "$USER_CONF" 2>/dev/null; then
+	if ! printf '\nenable_client_modding = true\n' >> "$USER_CONF"; then
+		printf 'Could not enable client mods in %s\n' "$USER_CONF" >&2
+		exit 1
+	fi
+elif grep -Eiq '^[[:space:]]*enable_client_modding[[:space:]]*=[[:space:]]*(false|no|off|0)[[:space:]]*(#.*)?$' "$USER_CONF"; then
+	if command -v zenity >/dev/null 2>&1; then
+		if zenity --question \
+				--title='Enable client-side modding?' \
+				--text='Luanti client-side modding is disabled in your profile. Enable it for this profile? Other enabled client mods in this profile may also run.'; then
+			if ! sed -i -E \
+					's/^[[:space:]]*enable_client_modding[[:space:]]*=.*/enable_client_modding = true/' \
+					"$USER_CONF"; then
+				printf 'Could not enable client mods in %s\n' "$USER_CONF" >&2
+				exit 1
+			fi
+		else
+			zenity_status=$?
+			if [ "$zenity_status" -gt 1 ]; then
+				printf 'Could not show client-mod opt-in dialog; client modding remains disabled.\n' >&2
+			fi
+		fi
+	else
+		printf 'Client modding is disabled in %s; install zenity to enable it interactively, or set enable_client_modding = true manually.\n' "$USER_CONF" >&2
+	fi
+fi
+
+exec "$APPDIR/AppRun.luanti" "$@"
