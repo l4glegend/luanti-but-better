@@ -58,6 +58,9 @@ script: |
     test -f AppDir/usr/share/luanti/builtin/init.lua
     test -f AppDir/usr/share/luanti/fonts/Arimo-Regular.ttf
     test -f AppDir/usr/share/luanti/locale/de/LC_MESSAGES/luanti.mo
+    test -f AppDir/usr/share/luanti/clientmods/mods.conf
+    test -f AppDir/usr/share/luanti/clientmods/ext_menu/init.lua
+    test -f AppDir/usr/share/luanti/clientmods/chest_dupe/init.lua
 
     # Is a backup icon location in case
     mkdir -p AppDir/usr/share/luanti/misc

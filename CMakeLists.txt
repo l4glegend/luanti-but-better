@@ -248,6 +248,10 @@ endif()
 if(BUILD_CLIENT)
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/client/shaders" DESTINATION "${SHAREDIR}/client")
 	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/textures/base/pack" DESTINATION "${SHAREDIR}/textures/base")
+	install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/clientmods-ext/"
+		DESTINATION "${SHAREDIR}/clientmods"
+		PATTERN "tests" EXCLUDE
+		PATTERN "tools" EXCLUDE)
 	if(RUN_IN_PLACE)
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/clientmods" DESTINATION "${SHAREDIR}")
 		install(DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/client/serverlist" DESTINATION "${SHAREDIR}/client")

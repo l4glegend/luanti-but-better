@@ -34,6 +34,7 @@
 #include "node_visuals.h"
 #include "profiler.h"
 #include "shader.h"
+#include "settings.h"
 #include "translation.h"
 #include "util/auth.h"
 #include "util/pointedthing.h"
@@ -272,6 +273,32 @@ void Client::loadMods()
 		paths["mods"] = path_user;
 
 		std::string settings_path = path_user + DIR_DELIM + "mods.conf";
+		const std::string bundled_settings_path = modsPath + DIR_DELIM + "mods.conf";
+		Settings bundled_settings;
+		if (bundled_settings.readConfigFile(bundled_settings_path.c_str())) {
+			Settings user_settings;
+			const bool user_config_exists = fs::PathExists(settings_path);
+			if (user_config_exists &&
+					!user_settings.readConfigFile(settings_path.c_str())) {
+				errorstream << "Failed to read client mod configuration: "
+					<< settings_path << std::endl;
+			} else {
+				bool added_defaults = false;
+				for (const std::string &name : bundled_settings.getNames()) {
+					if (name.compare(0, 9, "load_mod_") != 0 ||
+							user_settings.existsLocal(name))
+						continue;
+					user_settings.set(name, bundled_settings.get(name));
+					added_defaults = true;
+				}
+				if (added_defaults &&
+						(!fs::CreateAllDirs(path_user) ||
+						!user_settings.updateConfigFile(settings_path.c_str()))) {
+					errorstream << "Failed to enable bundled client mods in "
+						<< settings_path << std::endl;
+				}
+			}
+		}
 		modconf.addModsFromConfig(settings_path, paths);
 		modconf.checkConflictsAndDeps();
 	}

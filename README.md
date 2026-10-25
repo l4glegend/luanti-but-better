@@ -23,6 +23,9 @@ The in-game `.menu` panel provides access to the added client-side options:
 - **Configurable keys:** the added Freecam, X-Ray, and UI-utilities shortcuts
   can be changed in Luanti's settings.
 
+The bundled client-side modules are enabled automatically on first launch.
+Their settings are stored in the user's `clientmods/mods.conf` file.
+
 These are client-side modifications. Feature availability can vary between
 servers, and some servers may prohibit their use; follow the rules of the
 server you join.
