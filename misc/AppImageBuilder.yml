@@ -16,17 +16,16 @@ AppDir:
     - usr/share/doc
     - usr/share/lintian
   after_runtime: |
-    test -x "$SOURCE_DIR/misc/AppRun-clientmods"
-    mv "$TARGET_APPDIR/AppRun" "$TARGET_APPDIR/AppRun.luanti"
-    install -m 0755 "$SOURCE_DIR/misc/AppRun-clientmods" "$TARGET_APPDIR/AppRun"
+    test -x "$APPDIR/AppRun-clientmods"
+    mv "$APPDIR/AppRun" "$APPDIR/AppRun.luanti"
+    mv "$APPDIR/AppRun-clientmods" "$APPDIR/AppRun"
   apt:
     arch: amd64
     sources:
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ focal main universe
-        key_url: 'http://keyserver.ubuntu.com/pks/lookup?op=get&search=0x3b4fe6acc0b21f32'
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ focal-updates main universe
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ focal-backports main universe
-      - sourceline: deb http://archive.ubuntu.com/ubuntu/ focal-security main universe
+      - sourceline: deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu/ focal main universe
+      - sourceline: deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu/ focal-updates main universe
+      - sourceline: deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu/ focal-backports main universe
+      - sourceline: deb [signed-by=/usr/share/keyrings/ubuntu-archive-keyring.gpg] http://archive.ubuntu.com/ubuntu/ focal-security main universe
 
     include:
       - libc6
@@ -54,7 +53,7 @@ AppImage:
 script: |
     # Compile and install binaries into AppDir
     # Clear a stale CUSTOM_SHAREDIR from a previous build to keep data relocatable.
-    cmake -B appimage-build -U CUSTOM_SHAREDIR -DENABLE_REDIS=FALSE -DENABLE_POSTGRESQL=OFF -DCMAKE_INSTALL_PREFIX=AppDir/usr/ -DCUSTOM_SHAREDIR= -DCUSTOM_LOCALEDIR=share/luanti/locale -DBUILD_SERVER=FALSE -DENABLE_GETTEXT=TRUE -DCMAKE_BUILD_TYPE=Release -DRUN_IN_PLACE=FALSE
+    cmake -B appimage-build -U CUSTOM_SHAREDIR -DENABLE_REDIS=FALSE -DENABLE_POSTGRESQL=OFF -DENABLE_SYSTEM_JSONCPP=OFF -DCMAKE_INSTALL_PREFIX=AppDir/usr/ -DCUSTOM_SHAREDIR= -DCUSTOM_LOCALEDIR=share/luanti/locale -DBUILD_SERVER=FALSE -DENABLE_GETTEXT=TRUE -DCMAKE_BUILD_TYPE=Release -DRUN_IN_PLACE=FALSE
     cmake --build appimage-build --parallel $(nproc) --config Release
     cmake --install appimage-build
 
@@ -65,6 +64,8 @@ script: |
     test -f AppDir/usr/share/luanti/clientmods/mods.conf
     test -f AppDir/usr/share/luanti/clientmods/ext_menu/init.lua
     test -f AppDir/usr/share/luanti/clientmods/chest_dupe/init.lua
+    test -f misc/AppRun-clientmods
+    install -m 0755 misc/AppRun-clientmods AppDir/AppRun-clientmods
 
     # Is a backup icon location in case
     mkdir -p AppDir/usr/share/luanti/misc
