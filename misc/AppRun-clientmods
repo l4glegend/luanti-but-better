@@ -60,12 +60,7 @@ enable_default_mod() {
 enable_default_mod ext_menu
 enable_default_mod chest_dupe
 
-if ! grep -Eiq '^[[:space:]]*enable_client_modding[[:space:]]*=' "$USER_CONF" 2>/dev/null; then
-	if ! printf '\nenable_client_modding = true\n' >> "$USER_CONF"; then
-		printf 'Could not enable client mods in %s\n' "$USER_CONF" >&2
-		exit 1
-	fi
-elif grep -Eiq '^[[:space:]]*enable_client_modding[[:space:]]*=[[:space:]]*(false|no|off|0)[[:space:]]*(#.*)?$' "$USER_CONF"; then
+if grep -Eiq '^[[:space:]]*enable_client_modding[[:space:]]*=[[:space:]]*(false|no|off|0)[[:space:]]*(#.*)?$' "$USER_CONF" 2>/dev/null; then
 	if command -v zenity >/dev/null 2>&1; then
 		if zenity --question \
 				--title='Enable client-side modding?' \

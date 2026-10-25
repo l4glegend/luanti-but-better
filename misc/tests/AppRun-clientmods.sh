@@ -48,8 +48,8 @@ unset LUANTI_USER_PATH MINETEST_USER_PATH
 HOME="$TMP_ROOT/home-fresh"
 export HOME
 run_wrapper
-grep -Fx 'enable_client_modding = true' "$HOME/.minetest/minetest.conf" >/dev/null ||
-	fail "fresh profile enables client modding"
+test ! -e "$HOME/.minetest/minetest.conf" ||
+	fail "fresh profile does not persistently enable client modding"
 grep -Fx 'load_mod_ext_menu = true' "$HOME/.minetest/clientmods/mods.conf" >/dev/null ||
 	fail "fresh profile enables ext_menu"
 grep -Fx 'load_mod_chest_dupe = true' "$HOME/.minetest/clientmods/mods.conf" >/dev/null ||
@@ -110,6 +110,10 @@ HOME="$TMP_ROOT/home-minetest-path"
 MINETEST_USER_PATH="$TMP_ROOT/legacy-profile-minetest"
 LUANTI_USER_PATH=
 export HOME MINETEST_USER_PATH LUANTI_USER_PATH
+mkdir -p "$MINETEST_USER_PATH"
+printf 'enable_client_modding = false\n' > "$MINETEST_USER_PATH/minetest.conf"
+ZENITY_STATUS=0
+export ZENITY_STATUS
 run_wrapper
 grep -Fx 'enable_client_modding = true' "$MINETEST_USER_PATH/minetest.conf" >/dev/null ||
 	fail "MINETEST_USER_PATH profile is selected"
@@ -120,10 +124,14 @@ HOME="$TMP_ROOT/home-luanti-path"
 MINETEST_USER_PATH="$TMP_ROOT/legacy-profile-luanti"
 LUANTI_USER_PATH="$TMP_ROOT/current-profile"
 export HOME MINETEST_USER_PATH LUANTI_USER_PATH
+mkdir -p "$LUANTI_USER_PATH"
+printf 'enable_client_modding = false\n' > "$LUANTI_USER_PATH/minetest.conf"
+mkdir -p "$MINETEST_USER_PATH"
+printf 'enable_client_modding = false\n' > "$MINETEST_USER_PATH/minetest.conf"
 run_wrapper
 grep -Fx 'enable_client_modding = true' "$LUANTI_USER_PATH/minetest.conf" >/dev/null ||
 	fail "LUANTI_USER_PATH takes precedence"
-test ! -e "$MINETEST_USER_PATH/minetest.conf" ||
+grep -Fx 'enable_client_modding = false' "$MINETEST_USER_PATH/minetest.conf" >/dev/null ||
 	fail "legacy profile is untouched when LUANTI_USER_PATH is set"
 
 HOME="$TMP_ROOT/home-custom-config"
