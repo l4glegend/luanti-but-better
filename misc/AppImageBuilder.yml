@@ -49,9 +49,15 @@ AppImage:
   arch: x86_64
 script: |
     # Compile and install binaries into AppDir
-    cmake -B appimage-build -DENABLE_REDIS=FALSE -DENABLE_POSTGRESQL=OFF -DCMAKE_INSTALL_PREFIX=AppDir/usr/ -DBUILD_SERVER=FALSE -DENABLE_GETTEXT=TRUE -DCMAKE_BUILD_TYPE=Release -DRUN_IN_PLACE=FALSE
+    # Clear a stale CUSTOM_SHAREDIR from a previous build to keep data relocatable.
+    cmake -B appimage-build -U CUSTOM_SHAREDIR -DENABLE_REDIS=FALSE -DENABLE_POSTGRESQL=OFF -DCMAKE_INSTALL_PREFIX=AppDir/usr/ -DCUSTOM_SHAREDIR= -DCUSTOM_LOCALEDIR=share/luanti/locale -DBUILD_SERVER=FALSE -DENABLE_GETTEXT=TRUE -DCMAKE_BUILD_TYPE=Release -DRUN_IN_PLACE=FALSE
     cmake --build appimage-build --parallel $(nproc) --config Release
     cmake --install appimage-build
+
+    # The runtime locates bundled data relative to usr/bin/luanti.
+    test -f AppDir/usr/share/luanti/builtin/init.lua
+    test -f AppDir/usr/share/luanti/fonts/Arimo-Regular.ttf
+    test -f AppDir/usr/share/luanti/locale/de/LC_MESSAGES/luanti.mo
 
     # Is a backup icon location in case
     mkdir -p AppDir/usr/share/luanti/misc
