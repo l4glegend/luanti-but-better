@@ -2,9 +2,12 @@
 local SCRIPT = debug.getinfo(1, "S").source:sub(2)
 local MODDIR = assert(SCRIPT:match("^(.*)/tests/[^/]+$"),
 	"Could not determine ext_menu directory from test path")
+local ROOT = SCRIPT:match("^(.*)/clientmods%-ext/ext_menu/tests/[^/]+$") or "."
 local SETTINGS, SHOWN, INPUT_CB, COMMANDS = {}, {}, nil, {}
 local AFTER, LOG, GLOBALSTEPS = {}, {}, {}
+local SENDING_CHAT, CHAT_MESSAGES
 local core = {
+	registered_chatcommands = COMMANDS,
 	log = function(a, b) LOG[#LOG + 1] = (b ~= nil) and b or a end,
 	settings = {
 		get_bool = function(_, k, d)
@@ -19,6 +22,14 @@ local core = {
 	show_formspec = function(n, f) SHOWN[n] = (SHOWN[n] or 0) + 1 end,
 	register_on_formspec_input = function(cb) INPUT_CB = cb end,
 	register_chatcommand = function(n, c) COMMANDS[n] = c end,
+	register_on_sending_chat_message = function(cb) SENDING_CHAT = cb end,
+	run_callbacks = function() return false end,
+	display_chat_message = function(message)
+		CHAT_MESSAGES = CHAT_MESSAGES or {}
+		CHAT_MESSAGES[#CHAT_MESSAGES + 1] = message
+	end,
+	gettext = function(message) return message end,
+	set_last_run_mod = function() end,
 	register_globalstep = function(fn) GLOBALSTEPS[#GLOBALSTEPS + 1] = fn end,
 	get_modpath = function() return MODDIR end,
 	after = function(t, fn) AFTER[#AFTER + 1] = fn end,
@@ -30,21 +41,24 @@ local function check(cond, label)
 end
 
 assert(loadfile(MODDIR .. "/init.lua"))()
+assert(loadfile(ROOT .. "/builtin/client/chatcommands.lua"))()
 
 -- Fail-safe: nach dem Laden darf kein alter Zustand das Panel aufmachen
 check(SETTINGS["ext_menu.open"] == false, "fail-safe: ext_menu.open=false beim Laden")
 
 check(COMMANDS["menu"] ~= nil, ".menu registriert")
-local ok, err = pcall(function() COMMANDS["menu"].func() end)
-check(ok, "func() without error: " .. tostring(err))
-check(ok and err == nil, "kein Zweitfehler")
-
-check(SETTINGS["ext_menu.open"] == true, ".menu setzt ext_menu.open=true")
+local ok, consumed = pcall(function() return SENDING_CHAT(".menu") end)
+check(ok and consumed, ".menu im Chat wird lokal verarbeitet: " .. tostring(consumed))
+check(SETTINGS["ext_menu.open"] == true, ".menu-Chataufruf öffnet das Panel")
 check(next(SHOWN) == nil, "keine show_formspec mehr (natives Panel)")
 check(#AFTER == 0, "kein after-Queue (keine Animationen mehr)")
-local ok2, err2 = pcall(function() COMMANDS["menu"].func() end)
-check(ok2, "second call without error")
-check(SETTINGS["ext_menu.open"] == false, "zweiter Aufruf togglet wieder zu (false)")
+local ok2, consumed2 = pcall(function() return SENDING_CHAT(".menu") end)
+check(ok2 and consumed2, "zweiter .menu-Chataufruf wird lokal verarbeitet")
+check(SETTINGS["ext_menu.open"] == false, "zweiter Chataufruf togglet wieder zu (false)")
+local ok3, consumed3 = pcall(function() return SENDING_CHAT(".not_a_command") end)
+check(ok3 and consumed3, "unbekannter Clientbefehl wird lokal abgefangen")
+check(CHAT_MESSAGES[#CHAT_MESSAGES]:find("Invalid command: not_a_command", 1, true) ~= nil,
+	"unbekannter Clientbefehl zeigt lokale Fehlermeldung")
 
 -- per-option commands: eigene Kommandos je Option
 local want = { xray = "xray", fullbright = "fullbright", nonight = "no_night",

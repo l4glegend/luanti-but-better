@@ -11,8 +11,8 @@ The in-game `.menu` panel provides access to the added client-side options:
 
 ## Features
 
-- **Extension panel:** open it with `.menu` in chat to control the added
-  client-side features.
+- **Extension panel:** join a world, then enter `.menu` in chat to control the
+  added client-side features.
 - **Visual options:** X-Ray with an editable node list, Fullbright, and a
   daylight mode.
 - **Freecam:** move the camera independently while your character stays at its
