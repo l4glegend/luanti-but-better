@@ -3,6 +3,12 @@
 A customized build of the Luanti 5.17.0 voxel game engine, with a native
 client-side feature panel and additional client utilities.
 
+## Screenshot
+
+The in-game `.menu` panel provides access to the added client-side options:
+
+![Luanti but better client showing the .menu feature panel](screenshots/luanti-menu.png)
+
 ## Features
 
 - **Extension panel:** open it with `.menu` in chat to control the added
