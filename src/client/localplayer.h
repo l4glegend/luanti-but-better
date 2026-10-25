@@ -1,0 +1,291 @@
+// Luanti
+// SPDX-License-Identifier: LGPL-2.1-or-later
+// Copyright (C) 2010-2013 celeron55, Perttu Ahola <celeron55@gmail.com>
+
+#pragma once
+
+#include "player.h"
+#include "constants.h"
+#include "lighting.h"
+#include <string>
+
+class Client;
+class ClientActiveObject;
+class Environment;
+class GenericCAO;
+class Map;
+struct CollisionInfo;
+struct CollisionMoveResult;
+
+struct PlayerSettings
+{
+	bool free_move = false;
+	bool pitch_move = false;
+	bool fast_move = false;
+	bool continuous_forward = false;
+	bool always_fly_fast = false;
+	bool aux1_descends = false;
+	bool noclip = false;
+	bool autojump = false;
+
+	void readGlobalSettings();
+	void registerSettingsCallback();
+	void deregisterSettingsCallback();
+
+private:
+	static void settingsChangedCallback(const std::string &name, void *data);
+};
+
+class LocalPlayer : public Player
+{
+public:
+
+	LocalPlayer(Client *client, const std::string &name);
+	virtual ~LocalPlayer();
+
+	// Initialize hp to 0, so that no hearts will be shown if server
+	// doesn't support health points
+	u16 hp = 0;
+	bool touching_ground = false;
+	// This oscillates so that the player jumps a bit above the surface
+	bool in_liquid = false;
+	// This is more stable and defines the maximum speed of the player
+	bool in_liquid_stable = false;
+	// Slows down the player when moving through
+	u8 move_resistance = 0;
+	bool is_climbing = false;
+	bool swimming_vertical = false;
+	bool swimming_pitch = false;
+
+	f32 gravity = 0; // total downwards acceleration
+
+	void move(f32 dtime, Environment *env);
+	void move(f32 dtime, Environment *env,
+			std::vector<CollisionInfo> *collision_info);
+
+	void applyControl(float dtime, Environment *env);
+
+	// Freecam support.
+	void moveFreecam(f32 dtime, Environment *env,
+			std::vector<CollisionInfo> *collision_info);
+	void applyFreecamControl(float dtime, Environment *env);
+	void accelerateFreecam(const v3f &target_speed, const f32 max_increase_H,
+		const f32 max_increase_V, const bool use_pitch);
+
+	v3s16 getStandingNodePos();
+	v3s16 getFootstepNodePos();
+
+	// Used to check if anything changed and prevent sending packets if not
+	v3f last_position;
+	v3f last_speed;
+	float last_pitch = 0.0f;
+	float last_yaw = 0.0f;
+	u32 last_keyPressed = 0;
+	u8 last_camera_fov = 0;
+	u8 last_wanted_range = 0;
+	bool last_camera_inverted = false;
+	f32 last_movement_speed = 0.0f;
+	f32 last_movement_dir = 0.0f;
+
+	float camera_impact = 0.0f;
+
+	bool makes_footstep_sound = true;
+
+	LocalPlayerAnimation last_animation = LocalPlayerAnimation::NO_ANIM;
+	float last_animation_speed = 0.0f;
+
+	std::string hotbar_image = "";
+	std::string hotbar_selected_image = "";
+	/// Temporary player inventory formspec. Empty value = feature inactive.
+	std::string inventory_formspec_override;
+
+	video::SColor light_color = video::SColor(255, 255, 255, 255);
+
+	float hurt_tilt_timer = 0.0f;
+	float hurt_tilt_strength = 0.0f;
+
+	PlayerHud csm_hud;
+
+	GenericCAO *getCAO() const { return m_cao; }
+
+	ClientActiveObject *getParent() const;
+
+	void setCAO(GenericCAO *toset)
+	{
+		assert(!m_cao || !toset);
+		m_cao = toset;
+	}
+
+	u16 getBreath() const { return m_breath; }
+	void setBreath(u16 breath) { m_breath = breath; }
+
+	v3s16 getLightPosition() const;
+
+	void setYaw(f32 yaw) { m_yaw = yaw; }
+	f32 getYaw() const { return m_yaw; }
+
+	void setPitch(f32 pitch) { m_pitch = pitch; }
+	f32 getPitch() const { return m_pitch; }
+
+	inline void setPosition(const v3f &position)
+	{
+		if (m_freecam) {
+			// During freecam the camera owns m_position; a server correction
+			// must only move the spoofed body (m_legit_position).
+			m_legit_position = position;
+		} else {
+			m_position = position;
+			m_legit_position = position;
+		}
+		m_sneak_node_exists = false;
+	}
+	inline void addPosition(const v3f &added_pos)
+	{
+		if (m_freecam) {
+			m_legit_position += added_pos;
+		} else {
+			m_position += added_pos;
+			m_legit_position += added_pos;
+		}
+		m_sneak_node_exists = false;
+	}
+
+	v3f getPosition() const { return m_position; }
+
+	// Non-transformed eye offset getters
+	// For accurate positions, use the Camera functions
+	v3f getEyePosition() const { return m_position + getEyeOffset(); }
+	v3f getEyeOffset() const;
+	void setEyeHeight(float eye_height) { m_eye_height = eye_height; }
+
+	void setCollisionbox(const aabb3f &box) { m_collisionbox = box; }
+
+	const aabb3f& getCollisionbox() const { return m_collisionbox; }
+
+	float getZoomFOV() const { return m_zoom_fov; }
+	void setZoomFOV(float zoom_fov) { m_zoom_fov = zoom_fov; }
+
+	bool getAutojump() const { return m_autojump; }
+
+	bool isDead() const;
+
+	inline void addVelocity(const v3f &vel)
+	{
+		m_added_velocity += vel;
+	}
+
+	inline Lighting& getLighting() { return m_lighting; }
+
+	inline PlayerSettings &getPlayerSettings() { return m_player_settings; }
+
+	// Freecam position/speed getters.
+	// While the freecam flies, m_position/m_speed/m_yaw/m_pitch describe the
+	// detached camera; the "legit" fields describe the body that stays on the
+	// server.
+	inline v3f getLegitPosition() const { return m_freecam ? m_legit_position : m_position; }
+	inline v3f getLegitSpeed() const { return m_freecam ? m_legit_speed : m_speed; }
+	inline void setLegitPosition(const v3f &pos) {
+		if (m_freecam) m_legit_position = pos; else setPosition(pos);
+	}
+	inline void setLegitSpeed(const v3f &spd) {
+		if (m_freecam) m_legit_speed = spd; else setSpeed(spd);
+	}
+	inline f32 getLegitYaw() const { return m_freecam ? m_legit_yaw : m_yaw; }
+	inline void setLegitYaw(f32 yaw) { if (m_freecam) m_legit_yaw = yaw; else m_yaw = yaw; }
+	inline void setLegitPitch(f32 pitch) { if (m_freecam) m_legit_pitch = pitch; else m_pitch = pitch; }
+
+	// Send position spoofing -- during freecam the server is fed the
+	// legit body state so it does not roll the player back to the camera.
+	inline v3f getServerSendPosition() const { return m_freecam ? m_legit_position : m_position; }
+	inline v3f getSendSpeed() const { return m_freecam ? m_legit_speed : m_speed; }
+	inline float getSendPitch() const { return m_freecam ? m_legit_pitch : m_pitch; }
+	inline float getSendYaw() const { return m_freecam ? m_legit_yaw : m_yaw; }
+	inline u32 getSendKeysPressed() const { return m_freecam ? 0 : control.getKeysPressed(); }
+	// Movement fields describe the spoofed body: idle while the freecam flies
+	inline f32 getSendMovementSpeed() const { return m_freecam ? 0.0f : control.movement_speed; }
+	inline f32 getSendMovementDirection() const { return m_freecam ? m_legit_yaw : control.movement_direction; }
+
+	// Freecam enable/disable.
+	inline bool isFreecam() const { return m_freecam; }
+	inline void freecamEnable()
+	{
+		// Snapshot the spoofed body state; the camera detaches from it and
+		// the legit fields only track server corrections from here on
+		m_legit_position = m_position;
+		m_legit_speed = m_speed;
+		m_legit_yaw = m_yaw;
+		m_legit_pitch = m_pitch;
+		m_freecam = true;
+	}
+
+	inline void freecamDisable()
+	{
+		m_freecam = false;
+		setPosition(m_legit_position);
+		setSpeed(m_legit_speed);
+		m_yaw = m_legit_yaw;
+		m_pitch = m_legit_pitch;
+	}
+
+private:
+	void accelerate(const v3f &target_speed, const f32 max_increase_H,
+		const f32 max_increase_V, const bool use_pitch);
+	bool updateSneakNode(Map *map, const v3f &position, const v3f &sneak_max);
+	float getSlipFactor(Environment *env, const v3f &speedH);
+	void old_move(f32 dtime, Environment *env,
+			std::vector<CollisionInfo> *collision_info);
+	void handleAutojump(f32 dtime, Environment *env,
+		const CollisionMoveResult &result,
+		v3f position_before_move, v3f speed_before_move);
+
+	v3f m_position;
+	v3s16 m_standing_node;
+
+	v3s16 m_sneak_node = v3s16(32767, 32767, 32767);
+	// Stores the top bounding box of m_sneak_node
+	aabb3f m_sneak_node_bb_top = aabb3f(0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f);
+	// Whether the player is allowed to sneak
+	bool m_sneak_node_exists = false;
+	// Whether a "sneak ladder" structure is detected at the players pos
+	// see detectSneakLadder() in the .cpp for more info (always false if disabled)
+	bool m_sneak_ladder_detected = false;
+
+	// ***** Variables for temporary option of the old move code *****
+	// Stores the max player uplift by m_sneak_node
+	f32 m_sneak_node_bb_ymax = 0.0f;
+	// Whether recalculation of m_sneak_node and its top bbox is needed
+	bool m_need_to_get_new_sneak_node = true;
+	// Node below player, used to determine whether it has been removed,
+	// and its old type
+	v3s16 m_old_node_below = v3s16(32767, 32767, 32767);
+	std::string m_old_node_below_type = "air";
+	// ***** End of variables for temporary option *****
+
+	bool m_can_jump = false;
+	bool m_disable_jump = false;
+	bool m_disable_descend = false;
+	u16 m_breath = PLAYER_MAX_BREATH_DEFAULT;
+	f32 m_yaw = 0.0f;
+	f32 m_pitch = 0.0f;
+	aabb3f m_collisionbox = aabb3f(-BS * 0.30f, 0.0f, -BS * 0.30f, BS * 0.30f,
+		BS * 1.75f, BS * 0.30f);
+	float m_eye_height = 1.625f;
+	float m_zoom_fov = 0.0f;
+	bool m_autojump = false;
+	float m_autojump_time = 0.0f;
+
+	v3f m_added_velocity = v3f(0.0f); // in BS-space; cleared on each move()
+
+	// Freecam state.
+	bool m_freecam = false;
+	v3f m_legit_position = v3f(0.0f);
+	v3f m_legit_speed = v3f(0.0f);
+	f32 m_legit_yaw = 0.0f;
+	f32 m_legit_pitch = 0.0f;
+
+	GenericCAO *m_cao = nullptr;
+	Client *m_client;
+
+	PlayerSettings m_player_settings;
+	Lighting m_lighting;
+};

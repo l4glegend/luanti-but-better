@@ -1,0 +1,76 @@
+apply plugin: 'com.android.library'
+apply plugin: 'de.undercouch.download'
+
+android {
+	ndkVersion "$ndk_version"
+	defaultConfig {
+		minSdkVersion 21
+		compileSdk = 34
+		targetSdkVersion 34
+		externalNativeBuild {
+			cmake {
+				arguments "-DANDROID_STL=c++_shared",
+					"-DENABLE_CURL=1", "-DENABLE_SOUND=1",
+					"-DENABLE_GETTEXT=1",
+					"-DBUILD_UNITTESTS=0", "-DENABLE_UPDATE_CHECKER=0"
+			}
+		}
+	}
+
+	externalNativeBuild {
+		cmake {
+			path file("../../CMakeLists.txt")
+		}
+	}
+
+	// supported architectures
+	splits {
+		abi {
+			enable true
+			reset()
+			include 'armeabi-v7a', 'arm64-v8a', 'x86', 'x86_64'
+		}
+	}
+
+	buildTypes {
+		release {
+			ndk {
+				debugSymbolLevel 'FULL'
+			}
+		}
+	}
+	namespace 'net.minetest'
+}
+
+def depsDir = layout.buildDirectory.dir("../deps").get().asFile
+// need to do the check here so we can properly skip both tasks
+if (new File(depsDir, 'armeabi-v7a').exists()) {
+	tasks.register('getDeps') {
+		doLast { logger.lifecycle('Using existing deps from {}', depsDir) }
+	}
+} else {
+	// download and extract pre-compiled deps (libraries)
+	def depsZip = layout.buildDirectory.file("deps.zip")
+	tasks.register('downloadDeps', Download) {
+		src 'https://github.com/luanti-org/luanti_android_deps/releases/download/latest/deps-lite.zip'
+		dest depsZip
+		overwrite false
+	}
+
+	tasks.register("getDeps", Copy) {
+		dependsOn tasks.named("downloadDeps")
+
+		from zipTree(depsZip)
+		into depsDir
+		doFirst {
+			logger.lifecycle('Extracting to {}', depsDir)
+			depsDir.mkdir()
+		}
+	}
+}
+
+preBuild.dependsOn tasks.named("getDeps")
+
+clean {
+	delete depsDir
+}
